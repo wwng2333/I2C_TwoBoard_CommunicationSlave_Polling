@@ -40,13 +40,14 @@
 ---------------------------------------------------------*/
 I2C_HandleTypeDef I2cHandle;
 uint8_t aTxBuffer[2] = {0, 0};
-uint8_t aRxBuffer[1] = {0};
+uint8_t aRxBuffer[1] = {0}, IICReadCount = 0;
 
 ADC_HandleTypeDef hadc;
 ADC_ChannelConfTypeDef sConfig;
 ADC_AnalogWDGConfTypeDef      ADCAnalogWDGConfig;
 IWDG_HandleTypeDef   IwdgHandle;
 uint16_t adc_value[4], aTEMPERATURE;
+uint16_t aADC1[10], aADC2[10], aADC3[10], aADC4[10];
 
 /* Private function prototypes -----------------------------------------------*/
 /* Private user code ---------------------------------------------------------*/
@@ -56,6 +57,7 @@ void Error_Handler(void);
 void APP_SystemClockConfig(void);
 void APP_ADCConfig(void);
 void APP_IWDGConfig(void);
+void APP_ADCRead(void);
 void GPIO_Init(void);
 
 /**
@@ -87,27 +89,24 @@ int main(void)
   //while (BSP_PB_GetState(BUTTON_KEY) == 1)
   //{
   //}
+	APP_ADCRead();
 	
   while (1)
   {
-		aTxBuffer[0] = 0;
-		aTxBuffer[1] = 0;
 		HAL_IWDG_Refresh(&IwdgHandle);
-    HAL_ADC_Start(&hadc);                           /* ADC开启*/
-    for (i = 0; i < 4; i++)
-    {
-      HAL_ADC_PollForConversion(&hadc, 10000);      /* 等待ADC转换 */
-      adc_value[i] = HAL_ADC_GetValue(&hadc);       /* 获取AD值  */
-      SEGGER_RTT_printf(0, "adc[%d]:%d\r\n", i, adc_value[i]);
-    }
-		aTEMPERATURE = Temp_k * adc_value[2] - Temp_k * TScal1 + TStem1;
+		if(IICReadCount == 4) 
+		{
+			APP_ADCRead();
+			IICReadCount = 0;
+		}
 		SEGGER_RTT_printf(0, "IIC ready to recv.\r\n");
 		while (HAL_I2C_Slave_Receive(&I2cHandle, (uint8_t *)aRxBuffer, DARA_LENGTH, 1000) != HAL_OK)
 		{
 			HAL_IWDG_Refresh(&IwdgHandle);
 			//SEGGER_RTT_printf(0, "HAL_IWDG_Refresh\r\n");
 		}
-		SEGGER_RTT_printf(0, "IIC recv: %x\r\n", aRxBuffer[0]);
+		IICReadCount++;
+		SEGGER_RTT_printf(0, "IIC recv: 0x%x, ", aRxBuffer[0]);
 		switch(aRxBuffer[0])
 		{
 			case 0xA1:
@@ -132,16 +131,74 @@ int main(void)
 			break;
 		}
 		while (HAL_I2C_GetState(&I2cHandle) != HAL_I2C_STATE_READY);
-		SEGGER_RTT_printf(0, "HAL_I2C_STATE_READY after recv\r\n");
+		SEGGER_RTT_printf(0, "ready after recv\r\n");
 		while (HAL_I2C_Slave_Transmit(&I2cHandle, (uint8_t *)aTxBuffer, 2, 1000) != HAL_OK)
 		{
 			HAL_IWDG_Refresh(&IwdgHandle);
 			//SEGGER_RTT_printf(0, "HAL_IWDG_Refresh\r\n");
 		}
-		SEGGER_RTT_printf(0, "IIC sent: 0x%x%x\r\n", aTxBuffer[0], aTxBuffer[1]);
+		SEGGER_RTT_printf(0, "IIC sent: 0x%x%x, ", aTxBuffer[0], aTxBuffer[1]);
 		while (HAL_I2C_GetState(&I2cHandle) != HAL_I2C_STATE_READY);
-		SEGGER_RTT_printf(0, "HAL_I2C_STATE_READY after sent\r\n");
+		SEGGER_RTT_printf(0, "ready after sent\r\n");
   }
+}
+
+uint16_t average_without_extremes(uint16_t arr[]) {
+    uint16_t min = arr[0];
+    uint16_t max = arr[0];
+    uint16_t sum = 0;
+    
+    for (int i = 0; i < 10; i++) {
+        if (arr[i] < min) {
+            min = arr[i];
+        }
+        
+        if (arr[i] > max) {
+            max = arr[i];
+        }
+        
+        sum += arr[i];
+    }
+    
+    sum -= min + max;
+    
+    return sum / 8;
+}
+
+void APP_ADCRead(void)
+{
+	int i=0, j;
+	HAL_ADC_Start(&hadc);                           /* ADC开启*/
+	HAL_ADC_PollForConversion(&hadc, 10000);      /* 等待ADC转换 */
+	
+	aADC1[i] = HAL_ADC_GetValue(&hadc);       /* 获取AD值  */
+	HAL_ADC_PollForConversion(&hadc, 10000);      /* 等待ADC转换 */
+	aADC2[i] = HAL_ADC_GetValue(&hadc);
+	HAL_ADC_PollForConversion(&hadc, 10000);      /* 等待ADC转换 */
+	aADC3[i] = HAL_ADC_GetValue(&hadc);
+	HAL_ADC_PollForConversion(&hadc, 10000);      /* 等待ADC转换 */
+	aADC4[i] = HAL_ADC_GetValue(&hadc);
+	
+	for(i=1;i<10;i++) 
+	{
+		HAL_ADC_Start(&hadc);
+		HAL_ADC_PollForConversion(&hadc, 10000);      /* 等待ADC转换 */
+		aADC1[i] = HAL_ADC_GetValue(&hadc);       /* 获取AD值  */
+	  HAL_ADC_PollForConversion(&hadc, 10000);      /* 等待ADC转换 */
+		aADC2[i] = HAL_ADC_GetValue(&hadc);
+	  HAL_ADC_PollForConversion(&hadc, 10000);      /* 等待ADC转换 */
+		aADC3[i] = HAL_ADC_GetValue(&hadc);
+	  HAL_ADC_PollForConversion(&hadc, 10000);      /* 等待ADC转换 */
+		aADC4[i] = HAL_ADC_GetValue(&hadc);
+	}
+	SEGGER_RTT_printf(0, "ADC read 10 done.\r\n");
+	adc_value[0] = average_without_extremes(aADC1);
+	adc_value[1] = average_without_extremes(aADC2);
+	adc_value[2] = average_without_extremes(aADC3);
+	adc_value[3] = average_without_extremes(aADC4);
+	for(i=0;i<4;i++) SEGGER_RTT_printf(0, "ADC[%d]=%d.\r\n", i, adc_value[i]);
+	aTEMPERATURE = Temp_k * adc_value[2] - Temp_k * TScal1 + TStem1;
+	SEGGER_RTT_printf(0, "ADC read done.\r\n");
 }
 
 void APP_IWDGConfig(void)
