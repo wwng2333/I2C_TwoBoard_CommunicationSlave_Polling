@@ -30,7 +30,14 @@
 #define I2C_ADDRESS      0xA0               /*本机地址0xA0*/
 #define I2C_SPEEDCLOCK   100000             /*通讯速度100K*/
 #define I2C_DUTYCYCLE    I2C_DUTYCYCLE_16_9 /*占空比*/
-/* Private variables ---------------------------------------------------------*/
+#define Vcc_Power     3.3l                                            /* VCC电源电压,根据实际情况修改 */
+#define TScal1        (float)((HAL_ADC_TSCAL1) * 3.3 / Vcc_Power)     /* 85摄氏度校准值对应电压*/
+#define TScal2        (float)((HAL_ADC_TSCAL2) * 3.3 / Vcc_Power)     /* 30摄氏度校准值对应电压 */
+#define TStem1        30l                                             /* 30摄氏度*/
+#define TStem2        85l                                             /* 85摄氏度 */
+#define Temp_k        ((float)(TStem2-TStem1)/(float)(TScal2-TScal1)) /* 温度计算 */
+/* Private variables 
+---------------------------------------------------------*/
 I2C_HandleTypeDef I2cHandle;
 uint8_t aTxBuffer[2] = {0, 0};
 uint8_t aRxBuffer[1] = {0};
@@ -39,7 +46,7 @@ ADC_HandleTypeDef hadc;
 ADC_ChannelConfTypeDef sConfig;
 ADC_AnalogWDGConfTypeDef      ADCAnalogWDGConfig;
 IWDG_HandleTypeDef   IwdgHandle;
-uint16_t adc_value[4];
+uint16_t adc_value[4], aTEMPERATURE;
 
 /* Private function prototypes -----------------------------------------------*/
 /* Private user code ---------------------------------------------------------*/
@@ -83,6 +90,8 @@ int main(void)
 	
   while (1)
   {
+		aTxBuffer[0] = 0;
+		aTxBuffer[1] = 0;
 		HAL_IWDG_Refresh(&IwdgHandle);
     HAL_ADC_Start(&hadc);                           /* ADC开启*/
     for (i = 0; i < 4; i++)
@@ -91,11 +100,12 @@ int main(void)
       adc_value[i] = HAL_ADC_GetValue(&hadc);       /* 获取AD值  */
       SEGGER_RTT_printf(0, "adc[%d]:%d\r\n", i, adc_value[i]);
     }
+		aTEMPERATURE = Temp_k * adc_value[2] - Temp_k * TScal1 + TStem1;
 		SEGGER_RTT_printf(0, "IIC ready to recv.\r\n");
 		while (HAL_I2C_Slave_Receive(&I2cHandle, (uint8_t *)aRxBuffer, DARA_LENGTH, 1000) != HAL_OK)
 		{
 			HAL_IWDG_Refresh(&IwdgHandle);
-			SEGGER_RTT_printf(0, "HAL_IWDG_Refresh\r\n");
+			//SEGGER_RTT_printf(0, "HAL_IWDG_Refresh\r\n");
 		}
 		SEGGER_RTT_printf(0, "IIC recv: %x\r\n", aRxBuffer[0]);
 		switch(aRxBuffer[0])
@@ -109,8 +119,9 @@ int main(void)
 				aTxBuffer[1] = (uint8_t)(adc_value[1] >> 8);
 			break;
 			case 0xA3:
-				aTxBuffer[0] = (uint8_t)adc_value[2];
-				aTxBuffer[1] = (uint8_t)(adc_value[2] >> 8);
+				aTxBuffer[0] = (uint8_t)aTEMPERATURE;
+				aTxBuffer[1] = (uint8_t)(aTEMPERATURE >> 8);
+        //SEGGER_RTT_printf(0, "Core temp: %d\r\n", aTxBuffer[0]);
 			break;
 			case 0xA4:
 				aTxBuffer[0] = (uint8_t)adc_value[3];
@@ -121,13 +132,15 @@ int main(void)
 			break;
 		}
 		while (HAL_I2C_GetState(&I2cHandle) != HAL_I2C_STATE_READY);
-		while (HAL_I2C_Slave_Transmit(&I2cHandle, (uint8_t *)aTxBuffer, 3, 1000) != HAL_OK)
+		SEGGER_RTT_printf(0, "HAL_I2C_STATE_READY after recv\r\n");
+		while (HAL_I2C_Slave_Transmit(&I2cHandle, (uint8_t *)aTxBuffer, 2, 1000) != HAL_OK)
 		{
 			HAL_IWDG_Refresh(&IwdgHandle);
-			SEGGER_RTT_printf(0, "HAL_IWDG_Refresh\r\n");
+			//SEGGER_RTT_printf(0, "HAL_IWDG_Refresh\r\n");
 		}
-		while (HAL_I2C_GetState(&I2cHandle) != HAL_I2C_STATE_READY);
 		SEGGER_RTT_printf(0, "IIC sent: 0x%x%x\r\n", aTxBuffer[0], aTxBuffer[1]);
+		while (HAL_I2C_GetState(&I2cHandle) != HAL_I2C_STATE_READY);
+		SEGGER_RTT_printf(0, "HAL_I2C_STATE_READY after sent\r\n");
   }
 }
 
