@@ -163,20 +163,20 @@ void APP_ADCRead(void)
 	int i, j;
 	for(j=0;j<10;j++)
 	{
-		for(i=0;i<4;i++) 
+		HAL_ADC_Start(&hadc);
+		for(i=0;i<4;i++)
 		{
-			HAL_ADC_Start(&hadc);
 			HAL_ADC_PollForConversion(&hadc, 10000);      /* 等待ADC转换 */
 			aADC[i][j] = HAL_ADC_GetValue(&hadc);       /* 获取AD值  */
+			if(j == 9)
+			{
+				adc_value[i] = average_without_extremes(aADC[i]);
+				SEGGER_RTT_printf(0, "ADC[%d]=%d.\r\n", i, adc_value[i]);
+			}
 		}
 	}
-	for(i=0;i<4;i++)
-	{
-		adc_value[i] = average_without_extremes(aADC[i]);
-		SEGGER_RTT_printf(0, "ADC[%d]=%d.\r\n", i, adc_value[i]);
-	}
-	SEGGER_RTT_printf(0, "ADC read 10 done.\r\n");
 	aTEMPERATURE = Temp_k * adc_value[2] - Temp_k * TScal1 + TStem1;
+	SEGGER_RTT_printf(0, "temp=%d\r\n", aTEMPERATURE);
 	SEGGER_RTT_printf(0, "ADC read done.\r\n");
 }
 
