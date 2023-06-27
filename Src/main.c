@@ -47,7 +47,7 @@ ADC_ChannelConfTypeDef sConfig;
 ADC_AnalogWDGConfTypeDef      ADCAnalogWDGConfig;
 IWDG_HandleTypeDef   IwdgHandle;
 uint16_t adc_value[4], aTEMPERATURE;
-uint16_t aADC1[10], aADC2[10], aADC3[10], aADC4[10];
+uint16_t aADC[4][10] = {0};
 
 /* Private function prototypes -----------------------------------------------*/
 /* Private user code ---------------------------------------------------------*/
@@ -147,56 +147,35 @@ uint16_t average_without_extremes(uint16_t arr[]) {
     uint16_t min = arr[0];
     uint16_t max = arr[0];
     uint16_t sum = 0;
-    
     for (int i = 0; i < 10; i++) {
-        if (arr[i] < min) {
-            min = arr[i];
-        }
-        
-        if (arr[i] > max) {
-            max = arr[i];
-        }
-        
+        if (arr[i] < min) 
+					min = arr[i];
+        else if (arr[i] > max) 
+					max = arr[i];
         sum += arr[i];
     }
-    
     sum -= min + max;
-    
     return sum / 8;
 }
 
 void APP_ADCRead(void)
 {
-	int i=0, j;
-	HAL_ADC_Start(&hadc);                           /* ADC开启*/
-	HAL_ADC_PollForConversion(&hadc, 10000);      /* 等待ADC转换 */
-	
-	aADC1[i] = HAL_ADC_GetValue(&hadc);       /* 获取AD值  */
-	HAL_ADC_PollForConversion(&hadc, 10000);      /* 等待ADC转换 */
-	aADC2[i] = HAL_ADC_GetValue(&hadc);
-	HAL_ADC_PollForConversion(&hadc, 10000);      /* 等待ADC转换 */
-	aADC3[i] = HAL_ADC_GetValue(&hadc);
-	HAL_ADC_PollForConversion(&hadc, 10000);      /* 等待ADC转换 */
-	aADC4[i] = HAL_ADC_GetValue(&hadc);
-	
-	for(i=1;i<10;i++) 
+	int i, j;
+	for(j=0;j<10;j++)
 	{
-		HAL_ADC_Start(&hadc);
-		HAL_ADC_PollForConversion(&hadc, 10000);      /* 等待ADC转换 */
-		aADC1[i] = HAL_ADC_GetValue(&hadc);       /* 获取AD值  */
-	  HAL_ADC_PollForConversion(&hadc, 10000);      /* 等待ADC转换 */
-		aADC2[i] = HAL_ADC_GetValue(&hadc);
-	  HAL_ADC_PollForConversion(&hadc, 10000);      /* 等待ADC转换 */
-		aADC3[i] = HAL_ADC_GetValue(&hadc);
-	  HAL_ADC_PollForConversion(&hadc, 10000);      /* 等待ADC转换 */
-		aADC4[i] = HAL_ADC_GetValue(&hadc);
+		for(i=0;i<4;i++) 
+		{
+			HAL_ADC_Start(&hadc);
+			HAL_ADC_PollForConversion(&hadc, 10000);      /* 等待ADC转换 */
+			aADC[i][j] = HAL_ADC_GetValue(&hadc);       /* 获取AD值  */
+		}
+	}
+	for(i=0;i<4;i++)
+	{
+		adc_value[i] = average_without_extremes(aADC[i]);
+		SEGGER_RTT_printf(0, "ADC[%d]=%d.\r\n", i, adc_value[i]);
 	}
 	SEGGER_RTT_printf(0, "ADC read 10 done.\r\n");
-	adc_value[0] = average_without_extremes(aADC1);
-	adc_value[1] = average_without_extremes(aADC2);
-	adc_value[2] = average_without_extremes(aADC3);
-	adc_value[3] = average_without_extremes(aADC4);
-	for(i=0;i<4;i++) SEGGER_RTT_printf(0, "ADC[%d]=%d.\r\n", i, adc_value[i]);
 	aTEMPERATURE = Temp_k * adc_value[2] - Temp_k * TScal1 + TStem1;
 	SEGGER_RTT_printf(0, "ADC read done.\r\n");
 }
