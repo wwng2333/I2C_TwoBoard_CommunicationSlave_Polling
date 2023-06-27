@@ -30,7 +30,7 @@
 #define I2C_ADDRESS      0xA0               /*本机地址0xA0*/
 #define I2C_SPEEDCLOCK   100000             /*通讯速度100K*/
 #define I2C_DUTYCYCLE    I2C_DUTYCYCLE_16_9 /*占空比*/
-#define Vcc_Power     3.3l                                            /* VCC电源电压,根据实际情况修改 */
+#define Vcc_Power     3l                                            /* VCC电源电压,根据实际情况修改 */
 #define TScal1        (float)((HAL_ADC_TSCAL1) * 3.3 / Vcc_Power)     /* 85摄氏度校准值对应电压*/
 #define TScal2        (float)((HAL_ADC_TSCAL2) * 3.3 / Vcc_Power)     /* 30摄氏度校准值对应电压 */
 #define TStem1        30l                                             /* 30摄氏度*/
