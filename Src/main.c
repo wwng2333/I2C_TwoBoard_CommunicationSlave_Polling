@@ -38,6 +38,7 @@ uint8_t aRxBuffer[1] = {0};
 ADC_HandleTypeDef hadc;
 ADC_ChannelConfTypeDef sConfig;
 ADC_AnalogWDGConfTypeDef      ADCAnalogWDGConfig;
+IWDG_HandleTypeDef   IwdgHandle;
 uint16_t adc_value[4];
 
 /* Private function prototypes -----------------------------------------------*/
@@ -47,6 +48,7 @@ uint16_t adc_value[4];
 void Error_Handler(void);
 void APP_SystemClockConfig(void);
 void APP_ADCConfig(void);
+void APP_IWDGConfig(void);
 void GPIO_Init(void);
 
 /**
@@ -61,6 +63,7 @@ int main(void)
 	SEGGER_RTT_printf(0, "SystemCoreClock: %ld\r\n", SystemCoreClock);
 	
   APP_ADCConfig();
+	APP_IWDGConfig();
 	
   I2cHandle.Instance             = I2C;                                                                    /*I2C*/
   I2cHandle.Init.ClockSpeed      = I2C_SPEEDCLOCK;                                                        /*I2C通讯速度*/
@@ -80,6 +83,7 @@ int main(void)
 	
   while (1)
   {
+		HAL_IWDG_Refresh(&IwdgHandle);
     HAL_ADC_Start(&hadc);                           /* ADC开启*/
     for (i = 0; i < 4; i++)
     {
@@ -88,7 +92,11 @@ int main(void)
       SEGGER_RTT_printf(0, "adc[%d]:%d\r\n", i, adc_value[i]);
     }
 		SEGGER_RTT_printf(0, "IIC ready to recv.\r\n");
-		while (HAL_I2C_Slave_Receive(&I2cHandle, (uint8_t *)aRxBuffer, DARA_LENGTH, 2000) != HAL_OK);
+		while (HAL_I2C_Slave_Receive(&I2cHandle, (uint8_t *)aRxBuffer, DARA_LENGTH, 1000) != HAL_OK)
+		{
+			HAL_IWDG_Refresh(&IwdgHandle);
+			SEGGER_RTT_printf(0, "HAL_IWDG_Refresh\r\n");
+		}
 		SEGGER_RTT_printf(0, "IIC recv: %x\r\n", aRxBuffer[0]);
 		switch(aRxBuffer[0])
 		{
@@ -113,11 +121,28 @@ int main(void)
 			break;
 		}
 		while (HAL_I2C_GetState(&I2cHandle) != HAL_I2C_STATE_READY);
-		while (HAL_I2C_Slave_Transmit(&I2cHandle, (uint8_t *)aTxBuffer, 3, 2000) != HAL_OK);
+		while (HAL_I2C_Slave_Transmit(&I2cHandle, (uint8_t *)aTxBuffer, 3, 1000) != HAL_OK)
+		{
+			HAL_IWDG_Refresh(&IwdgHandle);
+			SEGGER_RTT_printf(0, "HAL_IWDG_Refresh\r\n");
+		}
 		while (HAL_I2C_GetState(&I2cHandle) != HAL_I2C_STATE_READY);
 		SEGGER_RTT_printf(0, "IIC sent: 0x%x%x\r\n", aTxBuffer[0], aTxBuffer[1]);
   }
 }
+
+void APP_IWDGConfig(void)
+{	
+	IwdgHandle.Instance = IWDG;                     /* 选择IWDG */
+  IwdgHandle.Init.Prescaler = IWDG_PRESCALER_32;  /* 配置32分频 */
+  IwdgHandle.Init.Reload = (2000);                /* IWDG计数器重装载值为1000，1s */
+
+  if (HAL_IWDG_Init(&IwdgHandle) != HAL_OK)        /* 初始化IWDG */
+  {
+    Error_Handler();
+  }
+	SEGGER_RTT_printf(0, "APP_IWDGConfig ok.\r\n");
+}	
 
 /**
   * @brief  系统时钟配置函数

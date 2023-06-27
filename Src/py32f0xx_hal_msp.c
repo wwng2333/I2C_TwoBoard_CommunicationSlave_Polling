@@ -29,7 +29,13 @@
   */
 void HAL_MspInit(void)
 {
- BSP_PB_Init(BUTTON_KEY, BUTTON_MODE_GPIO);
+ //BSP_PB_Init(BUTTON_KEY, BUTTON_MODE_GPIO);
+  /* 使能LSI时钟 */
+  __HAL_RCC_LSI_ENABLE();
+
+  /* 等待直到LSI READY置位 */
+  while (READ_BIT(RCC->CSR, RCC_CSR_LSIRDY) == 0U);
+	SEGGER_RTT_printf(0, "HAL_MspInit ok.\r\n");
 }
 
 /**
@@ -82,6 +88,7 @@ void HAL_ADC_MspInit(ADC_HandleTypeDef *hadc)
     GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;
     GPIO_InitStruct.Pull = GPIO_NOPULL;
     HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+		SEGGER_RTT_WriteString(0, "HAL_ADC_MspInit ok.\r\n");
   }
 }
 
