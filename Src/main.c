@@ -132,9 +132,15 @@ int main(void)
 		}
 		while (HAL_I2C_GetState(&I2cHandle) != HAL_I2C_STATE_READY);
 		SEGGER_RTT_printf(0, "ready after recv\r\n");
+		
+		uint32_t last_time = HAL_GetTick();
 		while (HAL_I2C_Slave_Transmit(&I2cHandle, (uint8_t *)aTxBuffer, 2, 1000) != HAL_OK)
 		{
 			HAL_IWDG_Refresh(&IwdgHandle);
+			if((HAL_GetTick() - last_time) > 10000)
+			{
+				while(1);
+			}
 			//SEGGER_RTT_printf(0, "HAL_IWDG_Refresh\r\n");
 		}
 		SEGGER_RTT_printf(0, "IIC sent: 0x%x%x, ", aTxBuffer[0], aTxBuffer[1]);
@@ -175,7 +181,7 @@ void APP_ADCRead(void)
 			}
 		}
 	}
-	aTEMPERATURE = Temp_k * adc_value[2] - Temp_k * TScal1 + TStem1;
+	aTEMPERATURE = 100 * (Temp_k * adc_value[2] - Temp_k * TScal1 + TStem1);
 	SEGGER_RTT_printf(0, "temp=%d\r\n", aTEMPERATURE);
 	SEGGER_RTT_printf(0, "ADC read done.\r\n");
 }
