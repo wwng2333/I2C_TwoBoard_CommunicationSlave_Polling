@@ -132,6 +132,8 @@ int main(void)
 		}
 		while (HAL_I2C_GetState(&I2cHandle) != HAL_I2C_STATE_READY);
 		SEGGER_RTT_printf(0, "ready after recv\r\n");
+		
+		uint32_t last_time = HAL_GetTick();
 		while (HAL_I2C_Slave_Transmit(&I2cHandle, (uint8_t *)aTxBuffer, 2, 1000) != HAL_OK)
 		{
 			HAL_IWDG_Refresh(&IwdgHandle);
@@ -141,7 +143,7 @@ int main(void)
 			}
 			//SEGGER_RTT_printf(0, "HAL_IWDG_Refresh\r\n");
 		}
-		SEGGER_RTT_printf(0, "IIC sent: 0x%x%x, ", aTxBuffer[0], aTxBuffer[1]);
+		SEGGER_RTT_printf(0, "IIC sent: 0x%x%x, ", aTxBuffer[1], aTxBuffer[0]);
 		while (HAL_I2C_GetState(&I2cHandle) != HAL_I2C_STATE_READY);
 		SEGGER_RTT_printf(0, "ready after sent\r\n");
   }
