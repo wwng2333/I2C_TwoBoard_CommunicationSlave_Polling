@@ -26,7 +26,6 @@
 #include "SEGGER_RTT.h"
 
 /* Private define ------------------------------------------------------------*/
-#define DARA_LENGTH 1                                                /*数据长度*/
 #define I2C_ADDRESS 0xA0                                             /*本机地址0xA0*/
 #define I2C_SPEEDCLOCK 100000                                        /*通讯速度100K*/
 #define I2C_DUTYCYCLE I2C_DUTYCYCLE_16_9                             /*占空比*/
@@ -36,12 +35,12 @@
 #define TStem1 30l                                                   /* 30摄氏度*/
 #define TStem2 85l                                                   /* 85摄氏度 */
 #define Temp_k ((float)(TStem2 - TStem1) / (float)(TScal2 - TScal1)) /* 温度计算 */
+
 /* Private variables
 ---------------------------------------------------------*/
 I2C_HandleTypeDef I2cHandle;
 uint8_t aTxBuffer[2] = {0, 0};
 uint8_t aRxBuffer[1] = {0}, IICReadCount = 0;
-
 ADC_HandleTypeDef hadc;
 ADC_ChannelConfTypeDef sConfig;
 ADC_AnalogWDGConfTypeDef ADCAnalogWDGConfig;
@@ -118,7 +117,7 @@ void APP_I2CPollingRecv(void)
 {
   SEGGER_RTT_printf(0, "IIC ready to recv.\r\n");
   last_time = HAL_GetTick();
-  while (HAL_I2C_Slave_Receive(&I2cHandle, (uint8_t *)aRxBuffer, DARA_LENGTH, 1000) != HAL_OK)
+  while (HAL_I2C_Slave_Receive(&I2cHandle, (uint8_t *)aRxBuffer, 1, 1000) != HAL_OK)
   {
     HAL_IWDG_Refresh(&IwdgHandle);
     SEGGER_RTT_printf(0, ".");

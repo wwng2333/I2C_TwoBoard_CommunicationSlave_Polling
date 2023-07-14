@@ -64,7 +64,6 @@ Revision: $Rev: 17697 $
 #include <stdlib.h>
 #include <stdarg.h>
 
-
 #define FORMAT_FLAG_LEFT_JUSTIFY   (1u << 0)
 #define FORMAT_FLAG_PAD_ZERO       (1u << 1)
 #define FORMAT_FLAG_PRINT_SIGN     (1u << 2)
